@@ -47,7 +47,9 @@ class Spectrometer:
         self._endpoint2 = self._device[0][(0, 0)][1]
         self._endpoint6 = self._device[0][(0, 0)][2]
         self._main_read_ep = self._device[0][(0, 0)][3]
-        self.id_string = self._query('\x05\x00')
+
+        self._device.write(self._write_ep.bEndpointAddress, b'\x01')
+        self.id_string = self._query(b'\x05\x00')
         self.a = 0
         self.b = 0
         self.c = 0
@@ -93,7 +95,8 @@ class Spectrometer:
 
     def _query(self, command):
         self._device.write(self._write_ep.bEndpointAddress, command)
-        return self._read_packet(self._main_read_ep)[2:].tostring().split('\0')[0]
+        return (self._read_packet(self._main_read_ep)[2:].tobytes().split(b'\0')[0]).decode('utf-8', 'ignore')
+
 
     def _query_float(self, command):
         return float(self._query(command))
@@ -103,28 +106,28 @@ class Spectrometer:
         Reads Spectrometer config from device and stores in object
 
         """
-        self.a = self._query_float('\x05\x01')
-        self.b = self._query_float('\x05\x02')
-        self.c = self._query_float('\x05\x03')
-        self.d = self._query_float('\x05\x04')
+        self.a = self._query_float(b'\x05\x01')
+        self.b = self._query_float(b'\x05\x02')
+        self.c = self._query_float(b'\x05\x03')
+        self.d = self._query_float(b'\x05\x04')
 
-        self.stray_light = self._query_float('\x05\x05')
+        self.stray_light = self._query_float(b'\x05\x05')
 
         self.nonlinearity = []
-        self.nonlinearity.append(self._query_float('\x05\x06'))
-        self.nonlinearity.append(self._query_float('\x05\x07'))
-        self.nonlinearity.append(self._query_float('\x05\x08'))
-        self.nonlinearity.append(self._query_float('\x05\x09'))
-        self.nonlinearity.append(self._query_float('\x05\x0a'))
-        self.nonlinearity.append(self._query_float('\x05\x0b'))
-        self.nonlinearity.append(self._query_float('\x05\x0c'))
-        self.nonlinearity.append(self._query_float('\x05\x0d'))
+        self.nonlinearity.append(self._query_float(b'\x05\x06'))
+        self.nonlinearity.append(self._query_float(b'\x05\x07'))
+        self.nonlinearity.append(self._query_float(b'\x05\x08'))
+        self.nonlinearity.append(self._query_float(b'\x05\x09'))
+        self.nonlinearity.append(self._query_float(b'\x05\x0a'))
+        self.nonlinearity.append(self._query_float(b'\x05\x0b'))
+        self.nonlinearity.append(self._query_float(b'\x05\x0c'))
+        self.nonlinearity.append(self._query_float(b'\x05\x0d'))
 
-        self.nl_order = self._query_float('\x05\x0e')
-        self.grating_config = self._query('\x05\x0f')
-        self.usb4000_config = self._query('\x05\x10')
-        self.auto_null = self._query('\x05\x11')
-        self.power_up_board = self._query('\x05\x12')
+        self.nl_order = self._query_float(b'\x05\x0e')
+        self.grating_config = self._query(b'\x05\x0f')
+        self.usb4000_config = self._query(b'\x05\x10')
+        self.auto_null = self._query(b'\x05\x11')
+        self.power_up_board = self._query(b'\x05\x12')
 
     def get_ccd_data(self):
         """
@@ -135,12 +138,12 @@ class Spectrometer:
         spectrum = []
         self._device.write(self._write_ep.bEndpointAddress, '\x09')
         for i in range(4):
-            spectrum.append(array.array('h', self._read_packet(self._endpoint6).tostring()))
+            spectrum.append(array.array('h', self._read_packet(self._endpoint6).tobytes()))
         for i in range(16-4-1):
-            spectrum.append(array.array('h', self._read_packet(self._endpoint2).tostring()))
+            spectrum.append(array.array('h', self._read_packet(self._endpoint2).tobytes()))
 
         end_data = self._read_packet(self._endpoint2)
-        if end_data.tostring() != "\x69":
+        if end_data.tobytes() != b"\x69":
             raise ValueError('Cannot get data from CCD')
 
         ccd_data = np.array(spectrum).flatten() ^ 0x2000
